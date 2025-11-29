@@ -1,0 +1,38 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Docker volumes
+volumes/
+data/
+
+# Logs
+logs/
+*.log
+nginx/logs/
+
+# SSL certificates (use Let's Encrypt in production)
+nginx/ssl/*.key
+nginx/ssl/*.crt
+nginx/ssl/*.pem
+
+# Backups
+backups/
+*.sql
+*.dump
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/

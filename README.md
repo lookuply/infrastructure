@@ -1,427 +1,294 @@
 # Lookuply Infrastructure
 
-**Infrastructure as Code for privacy-first search engine**
-
-Part of the [Lookuply](https://github.com/lookuply) open-source search engine project.
-
----
+Docker Compose orchestration for the Lookuply search engine ecosystem.
 
 ## Overview
 
-This repository contains all infrastructure configuration, deployment scripts, and documentation for running Lookuply in production. Built with Docker Compose and ready for Kubernetes scaling.
+This repository contains:
+- **docker-compose.yml**: Complete service orchestration
+- **Nginx configurations**: Reverse proxy with privacy-first headers
+- **Environment templates**: `.env.example` for configuration
 
-### Key Features
+## Services
 
-- **Docker Compose**: Easy local development and small-scale deployment
-- **Kubernetes Ready**: Helm charts for production scaling
-- **Infrastructure as Code**: Reproducible, version-controlled infrastructure
-- **Monitoring Stack**: Prometheus + Grafana dashboards
-- **Automated Backups**: PostgreSQL and configuration backups
-- **Security Hardened**: Firewall rules, SSL/TLS, fail2ban
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    Cloudflare CDN                   │
-│                  (DNS + DDoS Protection)            │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ↓
-┌─────────────────────────────────────────────────────┐
-│                  Hetzner Server                     │
-│                 (8 vCPU, 16GB RAM)                  │
-├─────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
-│  │  Nginx   │  │ Certbot  │  │   UFW    │         │
-│  │  Proxy   │  │   SSL    │  │ Firewall │         │
-│  └────┬─────┘  └──────────┘  └──────────┘         │
-│       │                                             │
-│  ┌────┴──────────────────────────────────────┐     │
-│  │           Docker Compose                  │     │
-│  ├───────────────────────────────────────────┤     │
-│  │ ┌──────────┐ ┌──────────┐ ┌──────────┐  │     │
-│  │ │OpenSearch│ │  Qdrant  │ │PostgreSQL│  │     │
-│  │ └──────────┘ └──────────┘ └──────────┘  │     │
-│  │ ┌──────────┐ ┌──────────┐ ┌──────────┐  │     │
-│  │ │  Redis   │ │  Ollama  │ │ Frontend │  │     │
-│  │ └──────────┘ └──────────┘ └──────────┘  │     │
-│  │ ┌──────────┐ ┌──────────┐               │     │
-│  │ │  Crawler │ │Search API│               │     │
-│  │ └──────────┘ └──────────┘               │     │
-│  └───────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## Technology Stack
-
-- **Hosting**: Hetzner Cloud (VPS/Dedicated)
-- **CDN**: Cloudflare (Free tier)
-- **Containers**: Docker + Docker Compose
-- **Orchestration**: Kubernetes (optional, for scaling)
-- **Reverse Proxy**: Nginx
-- **SSL**: Let's Encrypt via Certbot
-- **Firewall**: UFW + fail2ban
-- **Monitoring**: Prometheus + Grafana
-- **Backups**: Automated scripts
-
----
+| Service | Port | Description |
+|---------|------|-------------|
+| PostgreSQL | 5432 | URL frontier and metadata storage |
+| Redis | 6379 | Celery task queue |
+| Meilisearch | 7700 | Search index |
+| Coordinator | 8000 | URL frontier API |
+| Celery Worker | - | Background task processing |
+| AI Evaluator | 8001 | LLM page evaluation |
+| Search API | 8002 | Public search API |
+| Chat Frontend | 3000 | React UI |
+| Nginx | 80/443 | Reverse proxy |
 
 ## Quick Start
 
 ### Prerequisites
 
-```bash
-- Linux server (Ubuntu 22.04+ or Debian 12+)
-- Docker & Docker Compose installed
-- Domain name pointed to server
-- Cloudflare account (recommended)
-```
+- Docker 29.0+
+- Docker Compose v2.40+
+- Git 2.47+
 
-### Initial Setup
+### Setup
 
+1. **Clone repository**:
 ```bash
-# Clone repository
 git clone https://github.com/lookuply/infrastructure.git
 cd infrastructure
+```
 
-# Copy environment template
+2. **Clone component repositories** (adjacent to infrastructure):
+```bash
+cd ..
+git clone https://github.com/lookuply/coordinator.git
+git clone https://github.com/lookuply/crawler-node.git
+git clone https://github.com/lookuply/search-api.git
+git clone https://github.com/lookuply/ai-evaluator.git
+git clone https://github.com/lookuply/chat-frontend.git
+```
+
+Directory structure:
+```
+lookuply/
+├── infrastructure/       # This repo
+├── coordinator/
+├── crawler-node/
+├── search-api/
+├── ai-evaluator/
+└── chat-frontend/
+```
+
+3. **Configure environment**:
+```bash
+cd infrastructure
 cp .env.example .env
-# Edit .env with your configuration
-
-# Run setup script
-./scripts/setup.sh
-
-# Start all services
-docker-compose up -d
+vim .env  # Fill in secrets
 ```
 
----
-
-## Project Structure
-
-```
-infrastructure/
-├── docker/
-│   ├── docker-compose.yml        # Main compose file
-│   ├── docker-compose.prod.yml   # Production overrides
-│   └── docker-compose.dev.yml    # Development overrides
-├── nginx/
-│   ├── conf.d/                   # Nginx configs
-│   ├── ssl/                      # SSL certificates
-│   └── nginx.conf                # Main Nginx config
-├── kubernetes/
-│   ├── charts/                   # Helm charts
-│   ├── deployments/              # K8s deployments
-│   └── services/                 # K8s services
-├── scripts/
-│   ├── setup.sh                  # Initial server setup
-│   ├── backup.sh                 # Backup script
-│   ├── restore.sh                # Restore script
-│   └── deploy.sh                 # Deployment script
-├── monitoring/
-│   ├── prometheus/               # Prometheus config
-│   └── grafana/                  # Grafana dashboards
-└── docs/
-    ├── SETUP.md                  # Setup guide
-    ├── DEPLOYMENT.md             # Deployment guide
-    └── TROUBLESHOOTING.md        # Common issues
+4. **Start services**:
+```bash
+docker compose up -d
 ```
 
----
+5. **Check status**:
+```bash
+docker compose ps
+docker compose logs -f
+```
 
-## Services
+## Environment Variables
 
-### Core Services
+See `.env.example` for all required variables.
 
-| Service | Port | Description |
-|---------|------|-------------|
-| OpenSearch | 9200 | Full-text search engine |
-| Qdrant | 6333 | Vector database |
-| PostgreSQL | 5432 | Relational database |
-| Redis | 6379 | Cache & queue |
+**Critical secrets**:
+- `POSTGRES_PASSWORD`: Database password
+- `MEILI_MASTER_KEY`: Meilisearch master key
+- `EVAL_CRITERIA`: AI evaluation criteria (anti-gaming)
 
-### Application Services
+**Privacy settings** (hardcoded in docker-compose.yml):
+- `LOG_USER_DATA=false`: No user data logging
+- `ENABLE_ANALYTICS=false`: No analytics scripts
+- `ENABLE_COOKIES=false`: No tracking cookies
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Search API | 8000 | REST API |
-| Frontend | 3000 | Web interface |
-| Crawler | - | Background service |
+## Privacy-First Design
 
-### Infrastructure Services
+**Zero User Tracking**:
+- No IP logging (beyond rotated nginx logs)
+- No query history
+- No user profiles
+- No cookies (except temporary rate limiting)
+- No third-party analytics
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Nginx | 80, 443 | Reverse proxy |
-| Prometheus | 9090 | Metrics collection |
-| Grafana | 3001 | Monitoring dashboards |
-| Ollama | 11434 | LLM inference |
+**GDPR Compliance**: Achieved by not collecting any user data.
 
----
+## Development
 
-## Configuration
-
-### Environment Variables
+### Running individual services
 
 ```bash
-# Domain
-DOMAIN=lookuply.info
-API_DOMAIN=api.lookuply.info
-DOCS_DOMAIN=docs.lookuply.info
+# Database only
+docker compose up -d postgres redis meilisearch
 
-# Database
-POSTGRES_USER=lookuply
-POSTGRES_PASSWORD=<strong-password>
-POSTGRES_DB=lookuply
+# Backend only
+docker compose up -d coordinator search-api ai-evaluator
 
-# OpenSearch
-OPENSEARCH_PASSWORD=<strong-password>
-
-# Redis
-REDIS_PASSWORD=<strong-password>
-
-# API Keys
-API_SECRET_KEY=<random-key>
-
-# Email (for Let's Encrypt)
-LETSENCRYPT_EMAIL=hello@lookuply.info
+# Frontend only
+docker compose up -d chat-frontend nginx
 ```
 
-### Resource Limits
-
-```yaml
-# docker-compose.yml
-services:
-  opensearch:
-    mem_limit: 4g
-    cpus: 2
-
-  postgres:
-    mem_limit: 2g
-    cpus: 1
-
-  qdrant:
-    mem_limit: 4g
-    cpus: 2
-```
-
----
-
-## Deployment
-
-### Local Development
+### Viewing logs
 
 ```bash
-# Start all services
-docker-compose up -d
+# All services
+docker compose logs -f
 
-# View logs
-docker-compose logs -f
+# Specific service
+docker compose logs -f coordinator
 
-# Stop services
-docker-compose down
+# Last 100 lines
+docker compose logs --tail=100 search-api
 ```
 
-### Production Deployment
+### Rebuilding after code changes
 
 ```bash
-# Use production compose file
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Rebuild specific service
+docker compose build coordinator
+docker compose up -d coordinator
 
-# Or use deploy script
-./scripts/deploy.sh production
+# Rebuild all
+docker compose build
+docker compose up -d
 ```
 
-### SSL Setup
+## Production Deployment
+
+### Server Requirements
+
+- **RAM**: 16GB minimum (Ollama LLM needs 8GB+)
+- **Disk**: 150GB (index growth)
+- **CPU**: 4+ cores recommended
+
+### Hetzner Deployment
+
+**Server**: 46.224.73.134
+
+1. **SSH to server**:
+```bash
+ssh lookuply@46.224.73.134
+```
+
+2. **Clone repositories**:
+```bash
+mkdir -p ~/lookuply
+cd ~/lookuply
+git clone https://github.com/lookuply/infrastructure.git
+# ... clone other repos
+```
+
+3. **Install Ollama** (for LLM):
+```bash
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama3.1:8b
+```
+
+4. **Configure and start**:
+```bash
+cd infrastructure
+cp .env.example .env
+vim .env  # Add production secrets
+docker compose up -d
+```
+
+5. **Setup SSL** (Let's Encrypt):
+```bash
+# Install certbot
+sudo apt install certbot
+
+# Get certificate
+sudo certbot certonly --standalone -d lookuply.info -d www.lookuply.info
+
+# Update nginx config (uncomment HTTPS server block)
+vim nginx/conf.d/lookuply.conf
+
+# Restart nginx
+docker compose restart nginx
+```
+
+### Monitoring
 
 ```bash
-# Initial certificate
-sudo certbot --nginx -d lookuply.info -d www.lookuply.info
+# Check all services
+docker compose ps
 
-# Auto-renewal (already configured)
-sudo certbot renew --dry-run
+# Resource usage
+docker stats
+
+# Logs
+docker compose logs -f --tail=100
 ```
 
----
+## CI/CD
 
-## Monitoring
-
-### Prometheus Metrics
-
-Access at: `http://localhost:9090`
-
-Key metrics:
-- API response time
-- Search queries per second
-- Database connections
-- Disk usage
-- Memory usage
-
-### Grafana Dashboards
-
-Access at: `http://localhost:3001`
-
-Pre-configured dashboards:
-- System Overview
-- API Performance
-- Search Metrics
-- Database Health
-
----
-
-## Backup & Restore
-
-### Automated Backups
-
-```bash
-# Backup script runs daily via cron
-0 2 * * * /opt/lookuply/scripts/backup.sh
-
-# Manual backup
-./scripts/backup.sh
-
-# Backups stored in /opt/lookuply/backups/
-```
-
-### Restore from Backup
-
-```bash
-# List backups
-ls -lh /opt/lookuply/backups/
-
-# Restore specific backup
-./scripts/restore.sh /opt/lookuply/backups/backup-2025-11-25.tar.gz
-```
-
----
-
-## Scaling
-
-### Vertical Scaling
-
-Upgrade server resources:
-- CPX41 → CPX51 (12 vCPU, 32GB RAM)
-- Or dedicated server (AX102: 16 cores, 128GB RAM)
-
-### Horizontal Scaling
-
-Deploy to Kubernetes:
-
-```bash
-# Apply Kubernetes configs
-kubectl apply -f kubernetes/
-
-# Scale API replicas
-kubectl scale deployment search-api --replicas=3
-
-# Scale frontend replicas
-kubectl scale deployment frontend --replicas=3
-```
-
----
-
-## Security
-
-### Firewall Rules
-
-```bash
-# UFW configuration
-sudo ufw allow 22/tcp   # SSH
-sudo ufw allow 80/tcp   # HTTP
-sudo ufw allow 443/tcp  # HTTPS
-sudo ufw enable
-```
-
-### fail2ban
-
-Protects against brute-force attacks:
-
-```bash
-# Check status
-sudo fail2ban-client status
-
-# Unban IP
-sudo fail2ban-client set sshd unbanip <IP>
-```
-
-### SSL/TLS
-
-- **A+ rating** on SSL Labs
-- TLS 1.2 and 1.3 only
-- Strong cipher suites
-- HSTS enabled
-- OCSP stapling
-
----
+**GitHub Actions** workflows (to be added):
+- `.github/workflows/test.yml`: Test all services
+- `.github/workflows/deploy.yml`: Deploy to production
 
 ## Troubleshooting
 
-### Common Issues
+### Database connection failed
 
-**Services won't start:**
 ```bash
-# Check logs
-docker-compose logs service-name
+# Check PostgreSQL is running
+docker compose ps postgres
+docker compose logs postgres
 
-# Check disk space
-df -h
-
-# Check memory
-free -h
+# Verify credentials
+docker compose exec postgres psql -U lookuply -d lookuply
 ```
 
-**SSL certificate issues:**
-```bash
-# Renew manually
-sudo certbot renew --force-renewal
+### Meilisearch not accessible
 
-# Check certificate
-sudo certbot certificates
+```bash
+# Check health
+curl http://localhost:7700/health
+
+# Verify master key
+docker compose logs meilisearch
 ```
 
-**High memory usage:**
-```bash
-# Check container stats
-docker stats
+### LLM not responding
 
-# Reduce OpenSearch memory
-# Edit ES_JAVA_OPTS in docker-compose.yml
+```bash
+# Check Ollama is running
+curl http://localhost:11434/api/tags
+
+# Verify model is downloaded
+ollama list
 ```
 
----
+### Frontend not loading
 
-## Contributing
+```bash
+# Check if API URL is correct
+docker compose logs chat-frontend
 
-We welcome contributions! Please see our [Contributing Guidelines](https://github.com/lookuply/.github/blob/main/CONTRIBUTING.md).
+# Verify nginx config
+docker compose exec nginx nginx -t
+```
 
----
+## Development Standards
+
+**Test-Driven Development (TDD)**:
+- All components must have tests before deployment
+- Minimum 80% code coverage
+- Privacy-critical paths require 100% coverage
+
+**Git Workflow**:
+- Feature branches: `feature/<description>`
+- Conventional commits: `feat:`, `fix:`, `docs:`, etc.
+- PR required before merge
+
+**SOLID Principles**: Applied to all code
+
+See [DEVELOPMENT.md](https://github.com/lookuply/project-docs/blob/master/DEVELOPMENT.md) for details.
+
+## Architecture
+
+See [ARCHITECTURE.md](https://github.com/lookuply/project-docs/blob/master/ARCHITECTURE.md) for full system design.
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE)
+
+## Contact
+
+- **Email**: hello@lookuply.info
+- **Docs**: https://github.com/lookuply/project-docs
+- **Website**: https://lookuply.info
 
 ---
 
-## Related Projects
-
-- [lookuply/crawler](https://github.com/lookuply/crawler) - Web crawler
-- [lookuply/indexer](https://github.com/lookuply/indexer) - Content indexing
-- [lookuply/search-api](https://github.com/lookuply/search-api) - Search API
-- [lookuply/frontend](https://github.com/lookuply/frontend) - Web interface
-
----
-
-## Support
-
-- **Documentation**: [docs.lookuply.info](https://docs.lookuply.info)
-- **Status**: [status.lookuply.info](https://status.lookuply.info)
-- **Email**: [hello@lookuply.info](mailto:hello@lookuply.info)
-
----
-
-**Open source infrastructure. Built for privacy. Scales with you.**
+**Privacy-First | Decentralized | Open-Source**
