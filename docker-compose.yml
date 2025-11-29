@@ -111,6 +111,31 @@ services:
     volumes:
       - celery_logs:/app/logs
 
+  # Crawler Node - Decentralized web crawler
+  crawler-node:
+    build:
+      context: ../crawler-node
+      dockerfile: Dockerfile
+    container_name: lookuply-crawler-node
+    restart: unless-stopped
+    depends_on:
+      coordinator:
+        condition: service_started
+    environment:
+      COORDINATOR_URL: http://coordinator:8000
+      COORDINATOR_API_VERSION: v1
+      MAX_CONCURRENT_REQUESTS: 5
+      REQUEST_TIMEOUT: 30
+      USER_AGENT: "Lookuply-Crawler/0.1.0 (+https://lookuply.info)"
+      RESPECT_ROBOTS_TXT: "true"
+      CRAWL_DELAY: "1.0"
+      EXTRACT_LINKS: "true"
+      MAX_CONTENT_LENGTH: "10000000"
+    networks:
+      - lookuply-network
+    volumes:
+      - crawler_logs:/app/logs
+
   # AI Evaluator - LLM page evaluation
   ai-evaluator:
     build:
@@ -206,6 +231,8 @@ volumes:
   coordinator_logs:
     driver: local
   celery_logs:
+    driver: local
+  crawler_logs:
     driver: local
   evaluator_cache:
     driver: local
