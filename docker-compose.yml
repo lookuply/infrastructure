@@ -144,19 +144,21 @@ services:
     container_name: lookuply-ai-evaluator
     restart: unless-stopped
     environment:
-      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
-      MODEL_NAME: ${MODEL_NAME:-llama3.1:8b}
+      # Ollama runs inside container, so use localhost
+      OLLAMA_URL: http://localhost:11434
+      OLLAMA_MODEL: llama3.1:8b-instruct-q4_K_M
+      OLLAMA_TIMEOUT: 60
       # Anti-gaming: evaluation criteria in ENV (server-side secrets)
-      EVAL_CRITERIA: ${EVAL_CRITERIA:?EVAL_CRITERIA required}
-      EVAL_THRESHOLD: ${EVAL_THRESHOLD:-0.7}
-      API_HOST: 0.0.0.0
-      API_PORT: 8001
+      MIN_CONTENT_LENGTH: ${EVAL_MIN_CONTENT_LENGTH:-100}
+      MIN_QUALITY_SCORE: ${EVAL_MIN_QUALITY_SCORE:-0.6}
+      MAX_AD_RATIO: ${EVAL_MAX_AD_RATIO:-0.3}
+      EVALUATION_CACHE_TTL: 3600
     ports:
-      - "8001:8001"
+      - "11434:11434"  # Ollama API
     networks:
       - lookuply-network
     volumes:
-      - evaluator_cache:/app/cache
+      - ollama_models:/root/.ollama  # Persist downloaded models
 
   # Search API - FastAPI backend
   search-api:
@@ -234,7 +236,7 @@ volumes:
     driver: local
   crawler_logs:
     driver: local
-  evaluator_cache:
+  ollama_models:
     driver: local
   api_logs:
     driver: local
