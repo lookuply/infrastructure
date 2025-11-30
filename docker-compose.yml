@@ -194,11 +194,7 @@ services:
 
   # Chat Frontend - React UI
   chat-frontend:
-    build:
-      context: ../chat-frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${FRONTEND_API_URL:-http://46.224.73.134:8002}
+    image: lookuply-chat-frontend:latest
     container_name: lookuply-chat-frontend
     restart: unless-stopped
     ports:
