@@ -144,7 +144,8 @@ services:
     container_name: lookuply-ai-evaluator
     restart: unless-stopped
     environment:
-      # Ollama runs inside container, so use localhost
+      # Ollama runs inside container on default localhost:11434
+      # Don't set OLLAMA_HOST - let it use default
       OLLAMA_URL: http://localhost:11434
       OLLAMA_MODEL: llama3.1:8b-instruct-q4_K_M
       OLLAMA_TIMEOUT: 60
