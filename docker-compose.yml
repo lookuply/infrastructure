@@ -49,7 +49,7 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY required}
       MEILI_ENV: ${MEILI_ENV:-production}
       MEILI_HTTP_ADDR: 0.0.0.0:7700
-      MEILI_NO_ANALYTICS: true
+      MEILI_NO_ANALYTICS: "true"
     volumes:
       - meilisearch_data:/meili_data
     ports:
@@ -64,9 +64,7 @@ services:
 
   # Coordinator - URL frontier and task distribution
   coordinator:
-    build:
-      context: ../coordinator
-      dockerfile: Dockerfile
+    image: ghcr.io/lookuply/coordinator:main
     container_name: lookuply-coordinator
     restart: unless-stopped
     depends_on:
@@ -82,7 +80,7 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 8000
     ports:
-      - "8000:8000"
+      - "8001:8000"
     networks:
       - lookuply-network
     volumes:
@@ -183,8 +181,8 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 8002
       # Privacy: no user data logging
-      LOG_USER_QUERIES: false
-      ENABLE_ANALYTICS: false
+      LOG_USER_QUERIES: "false"
+      ENABLE_ANALYTICS: "false"
     ports:
       - "8002:8002"
     networks:
