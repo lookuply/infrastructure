@@ -83,6 +83,7 @@ docker compose logs -f
 See `.env.example` for all required variables.
 
 **Critical secrets**:
+- `REDIS_PASSWORD`: Redis authentication (REQUIRED in production)
 - `POSTGRES_PASSWORD`: Database password
 - `MEILI_MASTER_KEY`: Meilisearch master key
 - `EVAL_CRITERIA`: AI evaluation criteria (anti-gaming)
@@ -91,6 +92,55 @@ See `.env.example` for all required variables.
 - `LOG_USER_DATA=false`: No user data logging
 - `ENABLE_ANALYTICS=false`: No analytics scripts
 - `ENABLE_COOKIES=false`: No tracking cookies
+
+
+## Security
+
+### Port Binding (Production)
+
+**All internal services are bound to localhost only** to prevent external access:
+
+- PostgreSQL: `127.0.0.1:5432:5432` (not exposed to internet)
+- Redis: `127.0.0.1:6379:6379` (not exposed to internet)
+- Meilisearch: `127.0.0.1:7700:7700` (not exposed to internet)
+- Coordinator: `127.0.0.1:8001:8000` (not exposed to internet)
+- Search API: `127.0.0.1:8002:8002` (proxied via nginx)
+- Chat Frontend: `127.0.0.1:3000:80` (proxied via nginx)
+- Ollama: `127.0.0.1:11434:11434` (internal use only)
+
+**Only nginx is exposed** to the internet (ports 80/443) and acts as reverse proxy.
+
+### Redis Authentication
+
+**CRITICAL**: Redis MUST have password authentication in production.
+
+1. Generate secure password:
+```bash
+openssl rand -base64 32
+```
+
+2. Add to `.env`:
+```bash
+REDIS_PASSWORD=your_generated_password_here
+```
+
+3. Format for services:
+```bash
+REDIS_URL=redis://:PASSWORD@redis:6379/0
+CELERY_BROKER_URL=redis://:PASSWORD@redis:6379/0
+CELERY_RESULT_BACKEND=redis://:PASSWORD@redis:6379/0
+```
+
+**Development**: Can use Redis without password on localhost.
+**Production**: Password is REQUIRED for security.
+
+### Docker Firewall Bypass
+
+⚠️ **Important**: Docker bypasses UFW firewall rules!
+
+- Port mappings `"6379:6379"` expose to internet (0.0.0.0)
+- Port mappings `"127.0.0.1:6379:6379"` bind to localhost only
+- Always use localhost binding for internal services
 
 ## Privacy-First Design
 
