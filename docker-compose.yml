@@ -93,7 +93,7 @@ services:
       dockerfile: Dockerfile
     container_name: lookuply-celery-worker
     restart: unless-stopped
-    command: celery -A app.celery worker --loglevel=info
+    command: celery -A src.celery_app:celery_app worker --loglevel=info
     depends_on:
       postgres:
         condition: service_healthy
