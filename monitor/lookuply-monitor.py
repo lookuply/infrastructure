@@ -13,7 +13,10 @@ from rich.live import Live
 
 from dashboard import Dashboard
 from parsers import BaseParser
-from parsers.coordinator import CoordinatorParser
+from parsers.uvicorn import UvicornParser
+from parsers.gin import GinParser
+from parsers.crawler import CrawlerParser
+from parsers.celery import CeleryParser
 from parsers.nginx import NginxAccessParser, NginxErrorParser
 
 
@@ -35,11 +38,11 @@ class LogMonitor:
 
         # Initialize parsers
         self.parsers: Dict[str, BaseParser] = {
-            "coordinator": CoordinatorParser(),
-            "search_api": CoordinatorParser(),  # Same format
-            "celery": CoordinatorParser(),  # Same format
-            "crawler": CoordinatorParser(),  # Same format
-            "ai_evaluator": CoordinatorParser(),  # Same format
+            "coordinator": UvicornParser(),
+            "search_api": UvicornParser(),
+            "celery": CeleryParser(),
+            "crawler": CrawlerParser(),
+            "ai_evaluator": GinParser(),
             "nginx_access": NginxAccessParser(),
             "nginx_error": NginxErrorParser(),
         }
