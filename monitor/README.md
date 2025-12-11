@@ -45,8 +45,23 @@ python3 lookuply-monitor.py /path/to/config.yaml
 
 Edit `config.yaml` to customize:
 
-- Log file paths
-- Dashboard refresh rate
+**Docker Containers:**
+```yaml
+docker_containers:
+  coordinator: lookuply-coordinator
+  search_api: lookuply-search-api
+  # Add more containers...
+```
+
+**File-Based Logs:**
+```yaml
+log_files:
+  nginx_access: /var/log/nginx/access.log
+  nginx_error: /var/log/nginx/error.log
+```
+
+**Dashboard Settings:**
+- Refresh rate
 - Alert thresholds
 - Maximum errors/logs to display
 
@@ -58,10 +73,16 @@ Edit `config.yaml` to customize:
 
 ## Logs Monitored
 
-- **Coordinator**: URL frontier and task queue
-- **Search API**: Search queries and LLM requests
-- **Celery Worker**: Background task processing
-- **Nginx**: HTTP access and error logs
+### Docker Containers (via `docker logs`)
+- **Coordinator**: URL frontier and task queue (`lookuply-coordinator`)
+- **Search API**: Search queries and LLM requests (`lookuply-search-api`)
+- **Celery Worker**: Background task processing (`lookuply-celery-worker`)
+- **Crawler Node**: Web crawling operations (`lookuply-crawler-node`)
+- **AI Evaluator**: LLM page evaluation (`lookuply-ai-evaluator`)
+
+### File-Based Logs
+- **Nginx Access**: HTTP requests (`/var/log/nginx/access.log`)
+- **Nginx Error**: Server errors (`/var/log/nginx/error.log`)
 
 ## Dashboard Layout
 
@@ -81,12 +102,23 @@ Edit `config.yaml` to customize:
 
 ## Troubleshooting
 
-### Permission Denied
+### Permission Denied (Nginx logs)
 
-If you see permission errors, run with sudo:
+Nginx logs require root access. The script automatically uses sudo if needed.
+
+If you still see permission errors:
 
 ```bash
 sudo ./run.sh
+```
+
+### Docker Command Not Found
+
+Make sure Docker is installed and accessible:
+
+```bash
+docker --version
+docker ps
 ```
 
 ### No Logs Appearing

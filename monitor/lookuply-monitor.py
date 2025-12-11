@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Lookuply Log Monitoring Dashboard."""
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
 from threading import Thread
-from typing import Dict, List
+from typing import Dict
 
 import yaml
 from rich.live import Live
@@ -17,7 +18,7 @@ from parsers.nginx import NginxAccessParser, NginxErrorParser
 
 
 class LogMonitor:
-    """Monitor log files and update dashboard."""
+    """Monitor Docker logs and log files, update dashboard."""
 
     def __init__(self, config_path: str = "config.yaml"):
         """Initialize monitor."""
@@ -37,13 +38,49 @@ class LogMonitor:
             "coordinator": CoordinatorParser(),
             "search_api": CoordinatorParser(),  # Same format
             "celery": CoordinatorParser(),  # Same format
+            "crawler": CoordinatorParser(),  # Same format
+            "ai_evaluator": CoordinatorParser(),  # Same format
             "nginx_access": NginxAccessParser(),
             "nginx_error": NginxErrorParser(),
         }
 
-        # Track file positions
+        # Track file positions for file-based logs
         self.file_positions: Dict[str, int] = {}
         self.running = True
+        self.docker_processes = []
+
+    def follow_docker_logs(self, container_name: str, service: str):
+        """Follow Docker logs for a container using subprocess."""
+        try:
+            # Start docker logs -f process
+            process = subprocess.Popen(
+                ['docker', 'logs', '-f', '--tail', '0', container_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
+            )
+            self.docker_processes.append(process)
+
+            # Read lines from docker logs
+            for line in process.stdout:
+                if not self.running:
+                    break
+
+                if line.strip():
+                    # Parse line
+                    parser = self.parsers.get(service)
+                    if parser:
+                        entry = parser.parse(line)
+                        if entry:
+                            self.dashboard.add_log(entry)
+
+        except FileNotFoundError:
+            print(f"Error: 'docker' command not found. Is Docker installed?", file=sys.stderr)
+        except subprocess.SubprocessError as e:
+            print(f"Error following Docker logs for {container_name}: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"Unexpected error with {container_name}: {e}", file=sys.stderr)
 
     def tail_file(self, file_path: str, service: str):
         """Tail a log file and parse new lines."""
@@ -74,33 +111,61 @@ class LogMonitor:
                 # Update position
                 self.file_positions[file_path] = f.tell()
 
-        except (FileNotFoundError, PermissionError) as e:
+        except (FileNotFoundError, PermissionError):
             # File might not exist yet or no permission
             pass
         except Exception as e:
             print(f"Error reading {file_path}: {e}", file=sys.stderr)
 
-    def monitor_loop(self):
-        """Main monitoring loop."""
-        log_config = self.config.get("logs", {})
+    def monitor_files_loop(self):
+        """Main monitoring loop for file-based logs."""
+        log_files = self.config.get("log_files", {})
 
         while self.running:
             # Tail all configured log files
-            for service, file_path in log_config.items():
+            for service, file_path in log_files.items():
                 self.tail_file(file_path, service)
 
             # Sleep briefly
             time.sleep(0.5)
 
+    def start_docker_monitoring(self):
+        """Start monitoring Docker containers."""
+        docker_containers = self.config.get("docker_containers", {})
+
+        for service, container_name in docker_containers.items():
+            thread = Thread(
+                target=self.follow_docker_logs,
+                args=(container_name, service),
+                daemon=True,
+                name=f"docker-{service}"
+            )
+            thread.start()
+
+    def cleanup(self):
+        """Cleanup resources."""
+        self.running = False
+
+        # Terminate docker logs processes
+        for process in self.docker_processes:
+            try:
+                process.terminate()
+                process.wait(timeout=2)
+            except Exception:
+                process.kill()
+
     def run(self):
         """Run the monitoring dashboard."""
-        # Start monitoring thread
-        monitor_thread = Thread(target=self.monitor_loop, daemon=True)
-        monitor_thread.start()
+        # Start Docker logs monitoring
+        self.start_docker_monitoring()
+
+        # Start file monitoring thread
+        file_monitor_thread = Thread(target=self.monitor_files_loop, daemon=True)
+        file_monitor_thread.start()
 
         # Setup signal handler
         def signal_handler(sig, frame):
-            self.running = False
+            self.cleanup()
             sys.exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
@@ -115,7 +180,7 @@ class LogMonitor:
         except KeyboardInterrupt:
             pass
         finally:
-            self.running = False
+            self.cleanup()
 
 
 def main():

@@ -1,7 +1,13 @@
-logs:
-  coordinator: /var/lib/docker/volumes/lookuply_coordinator_logs/_data/app.log
-  search_api: /var/lib/docker/volumes/lookuply_api_logs/_data/app.log
-  celery: /var/lib/docker/volumes/lookuply_celery_logs/_data/app.log
+# Docker containers to monitor (uses 'docker logs')
+docker_containers:
+  coordinator: lookuply-coordinator
+  search_api: lookuply-search-api
+  celery: lookuply-celery-worker
+  crawler: lookuply-crawler-node
+  ai_evaluator: lookuply-ai-evaluator
+
+# File-based logs to monitor (uses tail -f)
+log_files:
   nginx_access: /var/log/nginx/access.log
   nginx_error: /var/log/nginx/error.log
 
