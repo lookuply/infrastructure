@@ -76,6 +76,8 @@ class LogMonitor:
                     if parser:
                         entry = parser.parse(line)
                         if entry:
+                            # Override service name with correct one
+                            entry.service = service
                             self.dashboard.add_log(entry)
 
         except FileNotFoundError:
@@ -109,6 +111,8 @@ class LogMonitor:
                         if parser:
                             entry = parser.parse(line)
                             if entry:
+                                # Override service name with correct one
+                                entry.service = service
                                 self.dashboard.add_log(entry)
 
                 # Update position
