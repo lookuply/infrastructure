@@ -57,7 +57,7 @@ class LogMonitor:
         try:
             # Start docker logs -f process
             process = subprocess.Popen(
-                ['docker', 'logs', '-f', '--tail', '0', container_name],
+                ['docker', 'logs', '-f', '--tail', '10', container_name],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
