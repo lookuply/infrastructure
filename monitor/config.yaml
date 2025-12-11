@@ -1,0 +1,20 @@
+logs:
+  coordinator: /var/lib/docker/volumes/lookuply_coordinator_logs/_data/app.log
+  search_api: /var/lib/docker/volumes/lookuply_api_logs/_data/app.log
+  celery: /var/lib/docker/volumes/lookuply_celery_logs/_data/app.log
+  nginx_access: /var/log/nginx/access.log
+  nginx_error: /var/log/nginx/error.log
+
+dashboard:
+  refresh_rate: 1  # seconds
+  max_errors: 10
+  max_logs: 5
+
+alerts:
+  - name: "High Error Rate"
+    condition: "errors_per_min > 10"
+    severity: critical
+
+  - name: "High Memory"
+    condition: "memory_percent > 90"
+    severity: warning
