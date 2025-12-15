@@ -1,7 +1,8 @@
 """Real-time dashboard using Rich TUI."""
 from collections import Counter, deque
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
+import requests
 
 import psutil
 from rich.console import Console
@@ -18,7 +19,7 @@ from parsers import LogEntry
 class Dashboard:
     """Real-time monitoring dashboard."""
 
-    def __init__(self, max_errors: int = 10, max_logs: int = 5):
+    def __init__(self, max_errors: int = 10, max_logs: int = 5, coordinator_url: str = "http://localhost:8000"):
         """Initialize dashboard."""
         self.console = Console()
         self.errors = deque(maxlen=max_errors)
@@ -27,6 +28,8 @@ class Dashboard:
         self.service_status: Dict[str, str] = {}
         self.max_errors = max_errors
         self.max_logs = max_logs
+        self.coordinator_url = coordinator_url
+        self.ai_stats: Optional[Dict] = None
 
     def add_log(self, entry: LogEntry):
         """Add a log entry to the dashboard."""
@@ -43,6 +46,19 @@ class Dashboard:
         # Track request stats
         if entry.extra and "path" in entry.extra:
             self.request_stats[entry.extra["path"]] += 1
+
+    def fetch_ai_stats(self):
+        """Fetch AI worker stats from coordinator API."""
+        try:
+            response = requests.get(
+                f"{self.coordinator_url}/coordinator/worker-stats",
+                timeout=2
+            )
+            if response.status_code == 200:
+                self.ai_stats = response.json()
+        except Exception:
+            # Connection failed, keep old stats or None
+            pass
 
     def create_layout(self) -> Layout:
         """Create the dashboard layout."""
@@ -190,46 +206,110 @@ class Dashboard:
 
         return Panel(table, title="📜 Live Log Stream (last 5)", border_style="magenta")
 
+    def render_ai_progress(self) -> Panel:
+        """Render AI worker progress panel."""
+        # Fetch latest stats
+        self.fetch_ai_stats()
+
+        if not self.ai_stats:
+            return Panel(
+                Text("Connecting to coordinator...", style="dim italic", justify="center"),
+                title="🤖 AI Processing Progress",
+                border_style="cyan"
+            )
+
+        stats = self.ai_stats
+        pending = stats.get("pending_pages", 0)
+        processing = stats.get("processing_pages", 0)
+        evaluated = stats.get("evaluated_pages", 0)
+        failed = stats.get("failed_pages", 0)
+        workers = stats.get("workers_active", 0)
+
+        total = pending + processing + evaluated + failed
+
+        # Calculate completion percentage
+        completion = 0
+        if total > 0:
+            completion = (evaluated / total) * 100
+
+        # Create stats table
+        table = Table.grid(padding=(0, 2))
+        table.add_column(justify="left", style="bold")
+        table.add_column(justify="right", style="cyan")
+
+        table.add_row("✅ Evaluated:", f"{evaluated:,}")
+        table.add_row("⏳ Pending:", f"{pending:,}")
+        table.add_row("🔄 Processing:", f"{processing:,}")
+        table.add_row("❌ Failed:", f"{failed:,}")
+        table.add_row("", "")  # Spacer
+        table.add_row("👷 Workers:", f"{workers}", style="bold green")
+        table.add_row("📊 Total:", f"{total:,}", style="bold")
+
+        # Progress bar
+        progress = Progress(
+            TextColumn("[bold]Progress"),
+            BarColumn(bar_width=20),
+            TextColumn("[bold]{task.percentage:>3.1f}%"),
+            expand=False
+        )
+        progress.add_task("", total=100, completed=completion)
+
+        # Combine table and progress
+        from rich.columns import Columns
+        content = Columns([table, progress], expand=False, padding=(0, 3))
+
+        return Panel(content, title="🤖 AI Processing Progress", border_style="cyan")
+
     def render(self) -> Layout:
         """Render the complete dashboard."""
-        layout = self.create_layout()
+        layout = Layout()
+
+        # Main layout structure
+        layout.split_column(
+            Layout(name="header", size=3),
+            Layout(name="main"),
+            Layout(name="footer", size=1)
+        )
+
+        # Split main into 3 columns
+        layout["main"].split_row(
+            Layout(name="left"),
+            Layout(name="center"),
+            Layout(name="right")
+        )
+
+        # Left column
+        layout["left"].split_column(
+            Layout(name="status"),
+            Layout(name="ai_progress")
+        )
+
+        # Center column
+        layout["center"].split_column(
+            Layout(name="requests"),
+            Layout(name="resources")
+        )
+
+        # Right column
+        layout["right"].split_column(
+            Layout(name="errors"),
+            Layout(name="logs", size=12)
+        )
 
         # Header
         header_text = Text("LOOKUPLY MONITORING DASHBOARD", style="bold magenta", justify="center")
         layout["header"].update(Panel(header_text, border_style="bright_magenta"))
 
-        # Panels
+        # Render all panels
         layout["status"].update(self.render_status())
+        layout["ai_progress"].update(self.render_ai_progress())
         layout["requests"].update(self.render_requests())
-        layout["errors"].update(self.render_errors())
         layout["resources"].update(self.render_resources())
+        layout["errors"].update(self.render_errors())
+        layout["logs"].update(self.render_logs())
 
         # Footer
         footer_text = Text("Press Ctrl+C to quit | Refreshing every 1s", style="dim", justify="center")
         layout["footer"].update(Panel(footer_text, border_style="dim"))
-
-        # Replace one panel with logs
-        layout["main"].split_column(
-            Layout(name="top"),
-            Layout(name="logs", size=10)
-        )
-        layout["top"].split_row(
-            Layout(name="left"),
-            Layout(name="right")
-        )
-        layout["left"].split_column(
-            Layout(name="status"),
-            Layout(name="requests")
-        )
-        layout["right"].split_column(
-            Layout(name="errors"),
-            Layout(name="resources")
-        )
-
-        layout["status"].update(self.render_status())
-        layout["requests"].update(self.render_requests())
-        layout["errors"].update(self.render_errors())
-        layout["resources"].update(self.render_resources())
-        layout["logs"].update(self.render_logs())
 
         return layout

@@ -31,9 +31,11 @@ class LogMonitor:
 
         # Initialize dashboard
         dashboard_config = self.config.get("dashboard", {})
+        api_config = self.config.get("api", {})
         self.dashboard = Dashboard(
             max_errors=dashboard_config.get("max_errors", 10),
-            max_logs=dashboard_config.get("max_logs", 5)
+            max_logs=dashboard_config.get("max_logs", 5),
+            coordinator_url=api_config.get("coordinator_url", "http://localhost:8000")
         )
 
         # Initialize parsers

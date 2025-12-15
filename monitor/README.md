@@ -5,6 +5,7 @@ Real-time console dashboard for monitoring Lookuply service logs.
 ## Features
 
 - 📊 Service status tracking
+- 🤖 **AI Processing Progress** (NEW) - Real-time AI worker statistics
 - 🔴 Error monitoring (last 10 errors)
 - 📈 Request statistics
 - 💾 Resource usage (CPU, RAM, Disk)
@@ -60,6 +61,12 @@ log_files:
   nginx_error: /var/log/nginx/error.log
 ```
 
+**API Endpoints:**
+```yaml
+api:
+  coordinator_url: http://localhost:8000
+```
+
 **Dashboard Settings:**
 - Refresh rate
 - Alert thresholds
@@ -87,14 +94,26 @@ log_files:
 ## Dashboard Layout
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              LOOKUPLY MONITORING DASHBOARD              │
-├─────────────────────────────────────────────────────────┤
-│  📊 System Status        🔴 Errors (Last 10)           │
-│  📈 Request Stats        💾 Resource Usage             │
-│  📜 Live Log Stream (last 5)                           │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                      LOOKUPLY MONITORING DASHBOARD                            │
+├───────────────────────────────────────────────────────────────────────────────┤
+│  📊 System Status    │  📈 Request Stats      │  🔴 Errors (Last 10)        │
+│  🤖 AI Progress      │  💾 Resource Usage     │  📜 Live Log Stream (5)     │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### AI Processing Progress Panel
+
+Displays real-time statistics from the coordinator's AI worker pipeline:
+
+- **✅ Evaluated**: Successfully processed pages
+- **⏳ Pending**: Pages waiting for processing
+- **🔄 Processing**: Pages currently being processed
+- **❌ Failed**: Pages that failed processing
+- **👷 Workers**: Number of active AI workers
+- **📊 Progress Bar**: Visual completion percentage
+
+**Data Source**: Fetches from `GET /coordinator/worker-stats` endpoint every 1 second.
 
 ## Keyboard Shortcuts
 
