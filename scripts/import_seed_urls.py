@@ -15,7 +15,7 @@ def import_urls(filename: str, coordinator_url: str = None) -> dict:
         coordinator_url: Coordinator API URL (default: from env or localhost)
 
     Returns:
-        Dict with 'added', 'skipped', 'total' counts
+        Dict with added, skipped, total counts
     """
     # Get coordinator URL
     if coordinator_url is None:
@@ -26,26 +26,24 @@ def import_urls(filename: str, coordinator_url: str = None) -> dict:
     # Read URLs from file
     print(f"📥 Reading URLs from {filename}...")
     try:
-        with open(filename, 'r') as f:
-            urls = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        with open(filename, "r") as f:
+            urls = [line.strip() for line in f if line.strip() and not line.startswith("#")]
     except FileNotFoundError:
         print(f"❌ File not found: {filename}")
         sys.exit(1)
 
     if not urls:
         print(f"⚠️  No URLs found in {filename}")
-        return {'added': 0, 'skipped': 0, 'total': 0}
+        return {"added": 0, "skipped": 0, "total": 0}
 
     print(f"   Found {len(urls)} URLs")
 
-    # Prepare batch data
+    # Prepare batch data - seed URLs get high priority (80)
     batch_data = {
-        'urls': [
+        "urls": [
             {
-                'url': url,
-                'priority': 'high',  # Seed URLs get high priority
-                'depth': 0,
-                'status': 'pending'
+                "url": url,
+                "priority": 80,  # High priority for seed URLs (0-100 scale)
             }
             for url in urls
         ]

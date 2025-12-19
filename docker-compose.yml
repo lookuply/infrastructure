@@ -64,7 +64,9 @@ services:
 
   # Coordinator - URL frontier and task distribution
   coordinator:
-    image: ghcr.io/lookuply/coordinator:main
+    build:
+      context: ../coordinator
+      dockerfile: Dockerfile
     container_name: lookuply-coordinator
     restart: unless-stopped
     depends_on:
@@ -136,6 +138,25 @@ services:
     volumes:
       - crawler_logs:/app/logs
 
+  # Ollama - LLM inference server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lookuply-ollama
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    ports:
+      - "11434:11434"
+    networks:
+      - lookuply-network
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # AI Evaluator - LLM page evaluation
   ai-evaluator:
     build:
@@ -143,23 +164,29 @@ services:
       dockerfile: Dockerfile
     container_name: lookuply-ai-evaluator
     restart: unless-stopped
+    depends_on:
+      coordinator:
+        condition: service_started
+      ollama:
+        condition: service_healthy
     environment:
-      # Make Ollama listen on all interfaces for Docker network access
-      OLLAMA_HOST: 0.0.0.0:11434
-      OLLAMA_URL: http://localhost:11434
+      COORDINATOR_URL: http://coordinator:8000
+      COORDINATOR_API_VERSION: v1
+      OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: llama3.1:8b-instruct-q4_K_M
       OLLAMA_TIMEOUT: 60
+      POLL_INTERVAL: 30
+      MAX_RETRIES: 3
+      RETRY_DELAY: 5
+      MAX_CONTENT_LENGTH: 50000
+      LOG_LEVEL: INFO
       # Anti-gaming: evaluation criteria in ENV (server-side secrets)
       MIN_CONTENT_LENGTH: ${EVAL_MIN_CONTENT_LENGTH:-100}
       MIN_QUALITY_SCORE: ${EVAL_MIN_QUALITY_SCORE:-0.6}
       MAX_AD_RATIO: ${EVAL_MAX_AD_RATIO:-0.3}
       EVALUATION_CACHE_TTL: 3600
-    ports:
-      - "11434:11434"  # Ollama API
     networks:
       - lookuply-network
-    volumes:
-      - ollama_models:/root/.ollama  # Persist downloaded models
 
   # Search API - FastAPI backend
   search-api:
